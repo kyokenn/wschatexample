@@ -1,7 +1,8 @@
 import redis
+import string
 
-from django.contrib.auth import login
 from django.core.exceptions import PermissionDenied
+from django.utils.crypto import get_random_string
 
 from rest_framework import generics, permissions, response, status
 
@@ -25,12 +26,13 @@ class LoginView(generics.CreateAPIView):
         if user is None:
             raise PermissionDenied
 
-        login(request, user)
-        token = request.session._session_key
-
         pool = redis.ConnectionPool(host='localhost', port=6379, db=0)
         rstore = redis.Redis(connection_pool=pool)
-        rstore.set('user:token:{}'.format(user.pk), token)
+
+        token = get_random_string(
+            32, string.ascii_lowercase + string.digits)
+
+        rstore.set('token:{}'.format(token), user.username.encode('utf8'))
 
         return response.Response({
             'token': token,
